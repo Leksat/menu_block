@@ -1,3 +1,6 @@
+Menu Block 5.x-1.x-dev
+  * Added missing dependency on menu module.
+
 Menu Block 5.x-1.0
   * Simplified block configuration.
 
