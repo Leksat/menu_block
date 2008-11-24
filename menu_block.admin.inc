@@ -2,59 +2,109 @@
 // $Id$
 
 /**
- * Display the settings form for Menu block.
- *
- * @return
- *   The form array.
+ * @file
+ * Provides infrequently used functions for menu_block.
  */
-function _menu_block_settings() {
-  $form = array();
-  $form['menu_block_enabled_blocks'] = array(
-    '#type'          => 'checkboxes',
-    '#title'         => t('Enable the following blocks of menu trees'),
-    '#default_value' => variable_get('menu_block_enabled_blocks', array()),
-    '#options'       => array(),
-    '#description'   => t('Only enabled blocks will appear on the <a href="!url">administer blocks page</a>.', array('!url' => url('admin/build/block'))),
-  );
-  foreach (variable_get('menu_block_enabled_blocks', array()) AS $delta => $enabled) {
-    $form['menu_block_enabled_blocks']['#options'][$delta] = _menu_block_format_title($delta);
-  }
-  $form['menu_block_enabled_blocks']['#options']['-1'] = '<em>' . t('Add a new unconfigured menu block.') . '</em>';
 
-  $form['buttons']['submit'] = array('#type' => 'submit', '#value' => t('Save configuration') );
-
-  if (!empty($_POST) && form_get_errors()) {
-    drupal_set_message(t('The settings have not been saved because of the errors.'), 'error');
-  }
-  return $form;
+/**
+ * Menu callback: display the menu block addition form.
+ */
+function _menu_block_add_block_form() {
+  include_once './' . drupal_get_path('module', 'block') . '/block.module';
+  return block_admin_configure('menu_block', NULL);
 }
 
 /**
- * Implments submit handler for menu_block_settings form.
+ * Save the new menu block.
  */
-function _menu_block_settings_submit($form_id, $form_values) {
-  $enabled_blocks = $form_values['menu_block_enabled_blocks'];
+function menu_block_add_block_form_submit($form_id, $form_values) {
+  // Determine the delta of the new block.
+  $block_ids = variable_get('menu_block_ids', array());
+  $delta = empty($block_ids) ? 1 : max($block_ids) + 1;
 
-  // Optionally add a new unconfigured block.
-  if ($enabled_blocks['-1']) {
-    $key = count($enabled_blocks); // Auto-increment.
-    $enabled_blocks[$key] = $key;
+  // Save the new array of blocks IDs.
+  $block_ids[] = $delta;
+  variable_set('menu_block_ids', $block_ids);
+
+  // Save the block configuration.
+  _menu_block_block_save($delta, $form_values);
+
+  // Run the normal new block submission (borrowed from block_add_block_form_submit).
+  foreach (list_themes() as $key => $theme) {
+    if ($theme->status) {
+      db_query("INSERT INTO {blocks} (visibility, pages, custom, title, module, theme, status, weight, delta) VALUES(%d, '%s', %d, '%s', '%s', '%s', %d, %d, %d)", $form_values['visibility'], trim($form_values['pages']), $form_values['custom'], $form_values['title'], $form_values['module'], $theme->name, 0, 0, $delta);
+    }
   }
-  unset($enabled_blocks['-1']);
 
-  // Save the enabled blocks.
-  variable_set('menu_block_enabled_blocks', $enabled_blocks);
-  drupal_set_message(t('The configuration options have been saved.'));
+  foreach (array_filter($form_values['roles']) as $rid) {
+    db_query("INSERT INTO {blocks_roles} (rid, module, delta) VALUES (%d, '%s', '%s')", $rid, $form_values['module'], $delta);
+  }
+
+  drupal_set_message(t('The block has been created.'));
+  cache_clear_all();
+
+  return 'admin/build/block';
+}
+
+/**
+ * Alters the block admin form to add delete links next to menu blocks.
+ */
+function _menu_block_form_block_admin_display_alter(&$form) {
+  for ($i=0; !empty($form[$i]); $i++) {
+    if ($form[$i]['module']['#value'] == 'menu_block') {
+      $form[$i]['delete'] = array('#value' => l(t('delete'), 'admin/build/block/delete-menu-block/'. $form[$i]['delta']['#value']));
+    }
+  }
+}
+
+/**
+ * Alters the add new menu block page to set the title properly.
+ */
+function _menu_block_form_menu_block_add_block_form_alter(&$form) {
+  drupal_set_title(t('New menu block'));
+}
+
+/**
+ * Menu callback: confirm deletion of menu blocks.
+ */
+function _menu_block_delete($delta = 0) {
+  $title = _menu_block_format_title($delta);
+  $form['block_title'] = array('#type' => 'hidden', '#value' => $title);
+  $form['delta'] = array('#type' => 'hidden', '#value' => $delta);
+
+  return confirm_form($form, t('Are you sure you want to delete the "%name" block?', array('%name' => $title)), 'admin/build/block', NULL, t('Delete'), t('Cancel'));
+}
+
+/**
+ * Deletion of menu blocks.
+ */
+function menu_block_delete_submit($form_id, $form_values) {
+  // Remove the menu block configuration variables.
+  $delta = $form_values['delta'];
+  $block_ids = variable_get('menu_block_ids', array());
+  unset($block_ids[array_search($delta, $block_ids)]);
+  sort($block_ids);
+  variable_set('menu_block_ids', $block_ids);
+  variable_del("menu_block_{$delta}_menu_name");
+  variable_del("menu_block_{$delta}_title");
+  variable_del("menu_block_{$delta}_level");
+  variable_del("menu_block_{$delta}_depth");
+  variable_del("menu_block_{$delta}_expanded");
+
+  db_query("DELETE FROM {blocks} WHERE module = 'menu_block' AND delta = %d", $delta);
+  db_query("DELETE FROM {blocks_roles} WHERE module = 'menu_block' AND delta = %d", $delta);
+  drupal_set_message(t('The "%name" block has been removed.', array('%name' => $form_values['block_title'])));
+  cache_clear_all();
+  return 'admin/build/block';
 }
 
 /**
  * Returns the 'list' $op info for hook_block().
  */
 function _menu_block_block_list() {
-  foreach (variable_get('menu_block_enabled_blocks', array()) AS $delta => $enabled) {
-    if ($enabled) {
-      $blocks[$delta]['info'] = _menu_block_format_title($delta);
-    }
+  $blocks = array();
+  foreach (variable_get('menu_block_ids', array()) AS $delta) {
+    $blocks[$delta]['info'] = _menu_block_format_title($delta);
   }
   return $blocks;
 }
@@ -68,24 +118,35 @@ function _menu_block_block_list() {
  *   string The title of the block
  */
 function _menu_block_format_title($delta) {
-  $mid = variable_get("menu_block_{$delta}_mid", NULL);
-  if (is_null($mid)) {
+  $menu_name = variable_get("menu_block_{$delta}_menu_name", NULL);
+  if (is_null($menu_name)) {
     $title = t('Unconfigured menu block');
   }
   else {
     $level = variable_get("menu_block_{$delta}_level", 1);
     $depth = variable_get("menu_block_{$delta}_depth", 0);
+    $expanded = variable_get("menu_block_{$delta}_expanded", 0);
     $menus = menu_get_root_menus();
     // Show the configured levels in the block info
-    $replacements = array('@menu_name' => $menus[$mid], '@level1' => $level, '@level2' => $level + $depth - 1);
+    $replacements = array('@menu_name' => $menus[$menu_name], '@level1' => $level, '@level2' => $level + $depth - 1);
     if ($depth == 1) {
       $title = t('@menu_name (level @level1)', $replacements);
     }
     elseif ($depth) {
-      $title = t('@menu_name (levels @level1-@level2)', $replacements);
+      if ($expanded) {
+        $title = t('@menu_name (expanded levels @level1-@level2)', $replacements);
+      }
+      else {
+        $title = t('@menu_name (levels @level1-@level2)', $replacements);
+      }
     }
     else {
-      $title = t('@menu_name (levels @level1+)', $replacements);
+      if ($expanded) {
+        $title = t('@menu_name (expanded levels @level1+)', $replacements);
+      }
+      else {
+        $title = t('@menu_name (levels @level1+)', $replacements);
+      }
     }
   }
   return $title;
@@ -95,17 +156,17 @@ function _menu_block_format_title($delta) {
  * Returns the 'configure' $op info for hook_block().
  */
 function _menu_block_block_configure($delta) {
-
-  $form['mid'] = array(
+  $form['help'] = array(
+    '#value' => '<p>' . t('To learn more about configuring menu blocks, see <a href="@url">menu block’s detailed help</a>.', array('@url' => url('admin/help/menu_block'))) . '</p>',
+    '#weight' => -18,
+  );
+  $form['menu_name'] = array(
     '#type' => 'select',
     '#title' => t('Menu'),
-    '#default_value' => variable_get("menu_block_{$delta}_mid", 1),
-    '#options' => array(),
+    '#default_value' => variable_get("menu_block_{$delta}_menu_name", 1),
+    '#options' => menu_get_root_menus(),
     '#description' => t('The tree (or list) of links will be taken from this menu.'),
   );
-  foreach (menu_get_root_menus() AS $mid => $title) {
-    $form['mid']['#options'][$mid] = $title;
-  }
   $form['level'] = array(
     '#type' => 'select',
     '#title' => t('Starting level of menu tree'),
@@ -122,7 +183,7 @@ function _menu_block_block_configure($delta) {
       '9'  => t('9th level'),
       '10' => t('10th level'),
     ),
-    '#description' => t("Blocks that start with the 2nd level or deeper will only be visible when the active menu item is in the block's tree. Blocks that start with the 1st level will always be visible."),
+    '#description' => t('Blocks that start with the 1st level will always be visible. Blocks that start with the 2nd level or deeper will only be visible when the trail to the active menu item is in the block’s tree.'),
   );
   $form['depth'] = array(
     '#type' => 'select',
@@ -141,7 +202,7 @@ function _menu_block_block_configure($delta) {
       '10' => '10',
       '0'  => 'Unlimited',
     ),
-    '#description' => t('Trees with a maximum depth of 1 will be styled as a menu list, i.e. theme_menu_block_list() instead of theme_menu_block_tree().'),
+    '#description' => t('From the starting level, specify the maximum depth of the tree.'),
   );
   $form['expanded'] = array(
     '#type' => 'checkbox',
@@ -156,7 +217,9 @@ function _menu_block_block_configure($delta) {
  * Returns the 'save' $op info for hook_block().
  */
 function _menu_block_block_save($delta, $edit) {
-  variable_set("menu_block_{$delta}_mid", $edit['mid']);
+  $menus = menu_get_root_menus();
+  variable_set("menu_block_{$delta}_menu_name", $edit['menu_name']);
+  variable_set("menu_block_{$delta}_title", $menus[$edit['menu_name']]);
   variable_set("menu_block_{$delta}_level", $edit['level']);
   variable_set("menu_block_{$delta}_depth", $edit['depth']);
   variable_set("menu_block_{$delta}_expanded", $edit['expanded']);

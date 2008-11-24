@@ -2,54 +2,108 @@
 // $Id$
 
 /**
- * Implementation of hook_perm().
+ * @file
+ * Provides configurable blocks of menu items.
  */
-function menu_block_perm() {
-  return array('administer menu block');
-}
+
+// @TODO: For PHP 4 compatibility we use foreach (array_keys($array) AS $key).
+// When PHP 5 becomes required (Drupal 7.x), use the following faster
+// implementation: foreach ($array AS $key => &$value) {}
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function menu_block_menu($may_cache) {
   $items = array();
 
   if ($may_cache) {
     $items[] = array(
-      'path' => 'admin/build/menu-block',
-      'title' => t('Menu blocks'),
-      'description' => t('Enable blocks to appear on the <a href="!url">administer blocks page</a>.', array('!url' => url('admin/build/block'))),
-      'access' => user_access('administer menu block'),
+      'path' => 'admin/build/block/add-menu-block',
+      'title' => t('Add menu block'),
+      'description' => t('Add a new menu block.'),
+      'access' => user_access('administer blocks'),
       'callback' => 'drupal_get_form',
-      'callback arguments' => 'menu_block_settings',
+      'callback arguments' => array('menu_block_add_block_form'),
+      'type' => MENU_LOCAL_TASK,
     );
-  }
-  else {
-    drupal_add_css(drupal_get_path('module', 'menu_block') . '/menu_block.css');
+    $items[] = array(
+      'path' => 'admin/build/block/delete-menu-block',
+      'title' => t('Delete menu block'),
+      'access' => user_access('administer blocks'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('menu_block_delete'),
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/menu_block',
+      'title' => t('Menu block'),
+      'description' => t('Add a new menu block.'),
+      'access' => user_access('administer blocks'),
+      'callback' => '_menu_block_by_module_hack', // And, I mean hack.
+    );
   }
 
   return $items;
 }
 
 /**
- * Display the settings form for Menu block.
- *
- * @return
- *   The form array.
+ * Implements hook_help().
  */
-function menu_block_settings() {
-  // The settings form is seldom used, so we store it in a separate file.
-  include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
-  return _menu_block_settings();
-}
-
-function menu_block_settings_submit($form_id, $form_values) {
-  include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
-  return _menu_block_settings_submit($form_id, $form_values);
+function menu_block_help($section) {
+  switch ($section) {
+    case 'admin/help#menu_block':
+    case 'admin/build/block':
+      include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.pages.inc';
+      return _menu_block_help($section);
+  }
 }
 
 /**
- * Implementation of hook_block().
+ * Alters the block admin form to add delete links next to menu blocks.
+ */
+function menu_block_form_alter($form_id, &$form) {
+  switch ($form_id) {
+    case 'block_admin_display':
+      include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
+      _menu_block_form_block_admin_display_alter($form);
+      break;
+    case 'menu_block_add_block_form':
+      include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
+      _menu_block_form_menu_block_add_block_form_alter($form);
+      break;
+  }
+}
+
+/**
+ * Menu callback: display the menu block addition form.
+ */
+function menu_block_add_block_form() {
+  include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
+  return _menu_block_add_block_form();
+}
+
+/**
+ * Menu callback: confirm deletion of menu blocks.
+ */
+function menu_block_delete($delta = 0) {
+  include_once './' . drupal_get_path('module', 'menu_block') . '/menu_block.admin.inc';
+  return _menu_block_delete($delta);
+}
+
+/**
+ * This page is simply to make Menu block visible on admin pages.
+ *
+ * In Drupal 5, the admin/by-module page won't display Menu block's help link
+ * because it doesn't have any non-tab menu links. So to allow Menu block to
+ * have some "visibility" in the admin pages, we add a fake-ish page to
+ * admin/settings/menu_block that redirects to the "Add menu block" tab.
+ */
+function _menu_block_by_module_hack() {
+  drupal_goto('admin/build/block/add-menu-block', NULL, NULL, 301);
+}
+
+/**
+ * Implements hook_block().
  */
 function menu_block_block($op = 'list', $delta = NULL, $edit = NULL) {
   $function = '_menu_block_block_' . $op;
@@ -74,9 +128,11 @@ function menu_block_block($op = 'list', $delta = NULL, $edit = NULL) {
 function _menu_block_block_view($delta) {
   $data = array();
 
-  // Determine which menu and what level of the menu has been requested.
-  $mid = variable_get("menu_block_{$delta}_mid", 1);
+  // Get the block configuration options.
+  $mid = variable_get("menu_block_{$delta}_menu_name", 1);
   $level = variable_get("menu_block_{$delta}_level", 1);
+  $depth = variable_get("menu_block_{$delta}_depth", 0);
+  $expanded = variable_get("menu_block_{$delta}_expanded", 0);
 
   // Render the block if the active menu item is in this menu.
   if ($level == 1 || menu_in_active_trail($mid)) {
@@ -89,14 +145,7 @@ function _menu_block_block_view($delta) {
     $menu_item = menu_get_item($mid);
 
     $data['subject'] = $menu_item['title'];
-    $depth = variable_get("menu_block_{$delta}_depth", 0);
-    if ($depth == 1) {
-      $data['content'] = theme('menu_block_list', $mid);
-    }
-    else {
-      $expanded = variable_get("menu_block_{$delta}_expanded", 0);
-      $data['content'] = theme('menu_block_tree', $mid, $depth, $expanded);
-    }
+    $data['content'] = theme('menu_block_tree', $mid, $depth, ($depth == 1) ? FALSE : $expanded);
   }
 
   return $data;
@@ -119,25 +168,6 @@ function _menu_block_block_view($delta) {
 function theme_menu_block_tree($pid = 1, $depth_limit = 0, $expanded = FALSE) {
   if ($tree = menu_block_tree($pid, $depth_limit, $expanded)) {
     return '<ul class="menu menu-tree menu-' . $pid . '">' . $tree . '</ul>';
-  }
-  else {
-    return '';
-  }
-}
-
-/**
- * Generate the HTML for a menu list.
- *
- * @ingroup themeable
- *
- * @param $pid
- *   int The parent id of the menu.
- * @return
- *   string The rendered menu list.
- */
-function theme_menu_block_list($pid = 1) {
-  if ($list = menu_block_tree($pid, 1, FALSE, TRUE)) {
-    return '<ul class="menu-list menu-' . $pid . '">' . $list . '</ul>';
   }
   else {
     return '';
