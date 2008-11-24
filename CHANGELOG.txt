@@ -1,4 +1,4 @@
-Menu Block 5.x-2.x-dev
+Menu Block 5.x-2.0
   #304675: Port 6.x admin interface to 5.x
   * Added missing dependency on menu module
 
