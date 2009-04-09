@@ -1,3 +1,6 @@
+Menu Block 5.x-2.x-dev
+  #378206 by sbordage: Added French translation.
+
 Menu Block 5.x-2.0
   #304675: Port 6.x admin interface to 5.x.
   * Added missing dependency on menu module.
