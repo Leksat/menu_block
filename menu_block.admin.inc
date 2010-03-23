@@ -219,6 +219,7 @@ function menu_block_configure_form(&$form_state) {
     '#options' => $menus,
     '#name' => 'parent_menu',
     '#id' => 'edit-parent-menu',
+    '#attributes' => array('class' => 'menu-block-parent-menu'),
     '#size' => 1,
     '#required' => FALSE,
     '#multiple' => FALSE,
@@ -237,13 +238,15 @@ function menu_block_configure_form(&$form_state) {
   drupal_add_js(drupal_get_path('module', 'menu_block') . '/menu-block.js');
 
   // Build the standard form.
-  $form['wrapper-start'] = array('#value' => '<div id="menu-block-settings">');
+  $form['menu-block-wrapper-start'] = array('#value' => '<div id="menu-block-settings" class="menu-block-configure-form">');
   drupal_add_css(drupal_get_path('module', 'menu_block') . '/menu-block-admin.css');
   $form['title_link'] = array(
+    '#prefix' => '<div class="menu-block-title-link">',
     '#type' => 'checkbox',
     '#title' => t('Block title as link'),
     '#default_value' => $config['title_link'],
     '#description' => t('Make the default block title a link to that menu item. An overridden block title will not be a link.'),
+    '#suffix' => '</div>',
   );
   $form['admin_title'] = array(
     '#type' => 'textfield',
@@ -257,6 +260,7 @@ function menu_block_configure_form(&$form_state) {
     '#default_value' => $config['menu_name'] . ':' . $config['parent_mlid'],
     '#options' => $parent_options,
     '#description' => t('The tree of links will only contain children of the selected parent item. Using <em>&lt;the menu selected by the page&gt;</em> can be customized on the <a href="!url">Menu block settings page</a>.', array('!url' => url('admin/settings/menu_block'))),
+    '#attributes' => array('class' => 'menu-block-parent'),
     '#element_validate' => array('menu_block_configure_form_parent_validate'),
   );
   $form['level'] = array(
@@ -291,8 +295,10 @@ function menu_block_configure_form(&$form_state) {
     '#default_value' => $follow,
     '#description' => t('If the active menu item is deeper than the level specified above, the starting level will follow the active menu item. Otherwise, the starting level of the tree will remain fixed.'),
     '#element_validate' => array('menu_block_configure_form_follow_validate'),
+    '#attributes' => array('class' => 'menu-block-follow'),
   );
   $form['follow_parent'] = array(
+    '#prefix' => '<div class="menu-block-follow-parent">',
     '#type' => 'select',
     '#title' => t('Starting level will be'),
     '#default_value' => $follow_parent,
@@ -301,6 +307,7 @@ function menu_block_configure_form(&$form_state) {
       'child' => t('Children of active menu item'),
     ),
     '#description' => t('When following the active menu item, specify if the starting level should be the active menu item or its children.'),
+    '#suffix' => '</div>',
   );
   $form['depth'] = array(
     '#type' => 'select',
@@ -331,7 +338,7 @@ function menu_block_configure_form(&$form_state) {
     '#default_value' => $config['sort'],
     '#description' => t('Sort each item in the active trail to the top of its level. When used on a deep or wide menu tree, the active menu item’s children will be easier to see when the page is reloaded.'),
   );
-  $form['wrapper-close'] = array('#value' => '</div>');
+  $form['menu-block-wrapper-close'] = array('#value' => '</div>');
 
   return $form;
 }
