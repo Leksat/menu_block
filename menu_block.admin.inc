@@ -174,7 +174,8 @@ function _menu_block_block_configure($delta) {
  * Returns the configuration form for a menu tree.
  *
  * @param $form_state
- *   array An associated array of configuration options.
+ *   array An associated array of configuration options should be present in the
+ *   'values' key. If none are given, default configuration is assumed.
  * @return
  *   array The form in Form API format.
  */
