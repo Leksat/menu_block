@@ -77,6 +77,8 @@ function menu_block_delete_submit($form, &$form_state) {
   unset($block_ids[array_search($delta, $block_ids)]);
   sort($block_ids);
   variable_set('menu_block_ids', $block_ids);
+  variable_del("menu_block_{$delta}_title_link");
+  variable_del("menu_block_{$delta}_admin_title");
   variable_del("menu_block_{$delta}_parent");
   variable_del("menu_block_{$delta}_level");
   variable_del("menu_block_{$delta}_follow");
