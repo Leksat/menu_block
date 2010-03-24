@@ -144,7 +144,7 @@ function _menu_block_block_view($delta) {
     }
     $menu_item = menu_get_item($mid);
 
-    $data['subject'] = $menu_item['title'];
+    $data['subject'] = check_plain($menu_item['title']);
     $data['content'] = theme('menu_block_tree', $mid, $depth, ($depth == 1) ? FALSE : $expanded);
   }
 
