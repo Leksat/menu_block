@@ -1,4 +1,5 @@
-Menu Block 5.x-1.x-dev
+Menu Block 5.x-1.1
+  #739282: Users with "administer menu" privileges can exploit XSS vulnerability
   * Added missing dependency on menu module.
 
 Menu Block 5.x-1.0
