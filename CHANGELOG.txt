@@ -1,5 +1,9 @@
 // $Id$
 
+Menu Block 6.x-2.x-dev, xxxx-xx-xx (development release)
+------------------------------
+- 
+
 Menu Block 6.x-2.3, 2010-03-24
 ------------------------------
 - #739282: Users with "administer menu" privileges can exploit XSS vulnerability
