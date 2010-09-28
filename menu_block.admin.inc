@@ -1,6 +1,4 @@
 <?php
-// $Id$
-
 /**
  * @file
  * Provides infrequently used functions for menu_block.
