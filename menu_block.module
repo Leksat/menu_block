@@ -320,7 +320,7 @@ function menu_tree_build($config) {
   $data['content'] = menu_block_tree_output($tree, $config);
   if ($data['content']) {
     $hooks = array();
-    $hooks[] = 'menu_block_wrapper__' . $config['delta'];
+    $hooks[] = 'menu_block_wrapper__' . str_replace('-', '_', $config['delta']);
     $hooks[] = 'menu_block_wrapper__' . str_replace('-', '_', $config['menu_name']);
     $hooks[] = 'menu_block_wrapper';
     $data['content'] = theme($hooks, $data['content'], $config, $config['delta']);
@@ -357,7 +357,7 @@ function menu_block_get_title($render_title_as_link = TRUE, $config = array()) {
     }
     $hooks = array();
     if (!empty($config['delta'])) {
-      $hooks[] = 'menu_item_link__menu_block__' . $config['delta'];
+      $hooks[] = 'menu_item_link__menu_block__' . str_replace('-', '_', $config['delta']);
     }
     $hooks[] = 'menu_item_link__menu_block__' . str_replace('-', '_', $menu_item['menu_name']);
     $hooks[] = 'menu_item_link__menu_block';
@@ -591,7 +591,7 @@ function menu_block_tree_output(&$tree, $config = array()) {
     $menu_item = current($tree);
     $config['menu_name'] = $menu_item['link']['menu_name'];
   }
-  $hook_delta = $config['delta'];
+  $hook_delta = str_replace('-', '_', $config['delta']);
   $hook_menu_name = str_replace('-', '_', $config['menu_name']);
 
   // Pull out just the menu items we are going to render so that we
