@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * Display the settings form for Menu block.
