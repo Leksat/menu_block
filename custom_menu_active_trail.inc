@@ -105,16 +105,19 @@ function __menu_block_set_menu_trail($menu_name = FALSE) {
  *   the most preferred menu (as defined by menu_get_active_menu_names()) is
  *   returned.
  */
-function _menu_link_get_preferred($path = NULL, $menu_name = '') {
+function _menu_link_get_preferred($path = NULL, $menu_name = NULL) {
   $preferred_links = &drupal_static(__FUNCTION__);
 
   if (!isset($path)) {
     $path = $_GET['q'];
   }
 
-  if (!isset($preferred_links[$path][$menu_name])) {
-    $preferred_links[$path][$menu_name] = FALSE;
+  if (!isset($menu_name)) {
+    // Use an illegal menu name as the key for the preferred menu link.
+    $menu_name = '__preferred__';
+  }
 
+  if (!isset($preferred_links[$path])) {
     // Look for the correct menu link by building a list of candidate paths,
     // which are ordered by priority (translated hrefs are preferred over
     // untranslated paths). Afterwards, the most relevant path is picked from
@@ -135,11 +138,14 @@ function _menu_link_get_preferred($path = NULL, $menu_name = '') {
     }
 
     // Retrieve a list of menu names, ordered by preference.
+    $menu_names = menu_get_active_menu_names();
     if ($menu_name !== '') {
-      $menu_names = array($menu_name);
+      // If we want a specific menu, put it at the front of the list.
+      array_unshift($menu_names, $menu_name);
     }
-    else {
-      $menu_names = menu_get_active_menu_names();
+    $preferred_links[$path]['__preferred__'] = FALSE;
+    foreach ($menu_names as $menu) {
+      $preferred_links[$path][$menu] = FALSE;
     }
 
     $query = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC));
@@ -155,9 +161,15 @@ function _menu_link_get_preferred($path = NULL, $menu_name = '') {
     foreach ($query->execute() as $candidate) {
       $candidate['weight'] = $candidate['link_weight'];
       $candidates[$candidate['link_path']][$candidate['menu_name']] = $candidate;
+      // Add any menus not already in the menu name search list.
+      if (!in_array($candidate['menu_name'], $menu_names)) {
+        $preferred_links[$path][$candidate['menu_name']] = FALSE;
+        $menu_names[] = $candidate['menu_name'];
+      }
     }
 
-    // Pick the most specific link, in the most preferred menu.
+    // Store the most specific link for each menu. Also save the most specific
+    // link of the most preferred menu in $preferred_link.
     $preferred_link = FALSE;
     foreach ($path_candidates as $link_path) {
       if (isset($candidates[$link_path])) {
@@ -176,9 +188,11 @@ function _menu_link_get_preferred($path = NULL, $menu_name = '') {
         }
       }
     }
-    if ($menu_name === '' && $preferred_link) {
-      $preferred_links[$path][$menu_name] = $preferred_link;
-    }
+    // Store the most specific link.
+    $preferred_links[$path]['__preferred__'] = $preferred_link;
+  }
+  if (!isset($preferred_links[$path][$menu_name])) {
+    $preferred_links[$path][$menu_name] = NULL;
   }
 
   return $preferred_links[$path][$menu_name];
