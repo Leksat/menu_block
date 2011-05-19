@@ -16,26 +16,26 @@ function menu_block_menu() {
   $items['admin/build/block/add-menu-block'] = array(
     'title' => 'Add menu block',
     'description' => 'Add a new menu block.',
-    'access arguments' => array('administer blocks'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('menu_block_add_block_form'),
+    'access arguments' => array('administer blocks'),
     'type' => MENU_LOCAL_TASK,
     'file' => 'menu_block.admin.inc',
   );
   $items['admin/build/block/delete-menu-block'] = array(
     'title' => 'Delete menu block',
-    'access arguments' => array('administer blocks'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('menu_block_delete'),
+    'access arguments' => array('administer blocks'),
     'type' => MENU_CALLBACK,
     'file' => 'menu_block.admin.inc',
   );
   $items['admin/settings/menu_block'] = array(
     'title' => 'Menu block',
     'description' => 'Configure menu block.',
-    'access arguments' => array('administer blocks'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('menu_block_admin_settings_form'),
+    'access arguments' => array('administer blocks'),
     'type' => MENU_NORMAL_ITEM,
     'file' => 'menu_block.admin.inc',
   );
@@ -437,7 +437,7 @@ function menu_tree_add_active_path(&$tree) {
 
   // Find each key in the active trail.
   while ($tree_with_trail) {
-    foreach (array_keys($tree_with_trail) AS $key) {
+    foreach (array_keys($tree_with_trail) as $key) {
       if ($tree_with_trail[$key]['link']['in_active_trail']) {
         // Set the active trail info in the original tree.
         $subtree_pointer[$key]['link']['in_active_trail'] = TRUE;
@@ -462,7 +462,7 @@ function menu_tree_add_active_path(&$tree) {
  *   void
  */
 function menu_tree_trim_active_path(&$tree) {
-  foreach (array_keys($tree) AS $key) {
+  foreach (array_keys($tree) as $key) {
     if (($tree[$key]['link']['in_active_trail'] || $tree[$key]['link']['expanded']) && $tree[$key]['below']) {
       // Continue in the subtree, if it exists.
       menu_tree_trim_active_path($tree[$key]['below']);
@@ -508,7 +508,7 @@ function menu_tree_prune_tree(&$tree, $level, $parent_item = FALSE) {
       $plid = $parent_item["p$i"];
       $found_active_trail = FALSE;
       // Examine each element at this level for the ancestor.
-      foreach (array_keys($tree) AS $key) {
+      foreach (array_keys($tree) as $key) {
         if ($tree[$key]['link']['mlid'] == $plid) {
           menu_block_set_title($tree[$key]['link']);
           // Prune the tree to the children of this ancestor.
@@ -529,7 +529,7 @@ function menu_tree_prune_tree(&$tree, $level, $parent_item = FALSE) {
   for ($i = 1; $i < $level; $i++) {
     $found_active_trail = FALSE;
     // Examine each element at this level for the active trail.
-    foreach (array_keys($tree) AS $key) {
+    foreach (array_keys($tree) as $key) {
       if ($tree[$key]['link']['in_active_trail']) {
         // Get the title for the pruned tree.
         menu_block_set_title($tree[$key]['link']);
@@ -574,7 +574,9 @@ function menu_tree_prune_active_tree(&$tree, $level) {
  */
 function menu_tree_depth_trim(&$tree, $depth_limit) {
   // Prevent invalid input from returning a trimmed tree.
-  if ($depth_limit < 1) { return; }
+  if ($depth_limit < 1) {
+    return;
+  }
 
   // Examine each element at this level to find any possible children.
   foreach (array_keys($tree) AS $key) {
