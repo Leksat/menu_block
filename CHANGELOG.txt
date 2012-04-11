@@ -1,4 +1,4 @@
-Menu Block 7.x-2.x-dev, xxxx-xx-xx (development release)
+Menu Block 7.x-3.x-dev, xxxx-xx-xx (development release)
 ----------------------------------
 -
 
